@@ -1,35 +1,43 @@
 name: Build Android APK & Send to Telegram
+
 on:
   push:
     branches: [ "main" ]
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
-    
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
     - name: Instal Alat Unzip
       run: sudo apt-get update && sudo apt-get install -y unzip
-      
+
     - name: Ekstrak File ZIP
       run: |
         ZIP_FILE=$(ls *.zip | head -n 1)
+        if [ -z "$ZIP_FILE" ]; then
+          echo "Tidak ada file ZIP ditemukan!"
+          exit 1
+        fi
         ZIP_NAME=$(basename "$ZIP_FILE" .zip)
         echo "APK_NAME=${ZIP_NAME}.apk" >> $GITHUB_ENV
         unzip -o "$ZIP_FILE" -d .
-      
+
     - name: Perbaiki Isu Keystore
       run: |
         if [ -f app/build.gradle.kts ]; then
           sed -i 's/signingConfig = signingConfigs.getByName("debugConfig")//g' app/build.gradle.kts
         fi
-        
+
     - name: Siapkan Java 21
       uses: actions/setup-java@v4
       with:
         java-version: '21'
         distribution: 'temurin'
-        
+
     - name: Cache Gradle
       uses: actions/cache@v4
       with:
@@ -48,11 +56,9 @@ jobs:
         else
           gradle assembleDebug
         fi
-        # Salin dan ubah nama APK agar sesuai dengan nama file ZIP
-        cp app/build/outputs/apk/debug/app-debug.apk ${{ env.APK_NAME }}
+        cp app/build/outputs/apk/debug/app-debug.apk "${{ env.APK_NAME }}"
 
-    - name: Kirim File APK Langsung ke Telegram
-      if: success() && env.TELEGRAM_BOT_TOKEN != ''
+    - name: Kirim File APK ke Telegram
       run: |
         curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
              -F document=@"${{ env.APK_NAME }}" \
