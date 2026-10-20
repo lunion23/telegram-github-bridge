@@ -48,7 +48,7 @@ jobs:
         else
           gradle assembleDebug
         fi
-        # Ubah nama APK agar sesuai dengan nama file ZIP
+        # Salin dan ubah nama APK agar sesuai dengan nama file ZIP
         cp app/build/outputs/apk/debug/app-debug.apk ${{ env.APK_NAME }}
 
     - name: Kirim File APK Langsung ke Telegram
@@ -56,12 +56,5 @@ jobs:
       run: |
         curl -F chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
              -F document=@"${{ env.APK_NAME }}" \
-             -F caption="✅ *Build APK Berhasil!* %0ANama File: `${{ env.APK_NAME }}`" \
+             -F caption="✅ *Build APK Berhasil!*%0ANama File: `${{ env.APK_NAME }}`" \
              "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument"
-
-    - name: Kirim Notifikasi Gagal ke Telegram
-      if: failure() && env.TELEGRAM_BOT_TOKEN != ''
-      run: |
-        curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-        -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-        -d "text=❌ Build APK Gagal! Silakan cek log di GitHub Actions."
