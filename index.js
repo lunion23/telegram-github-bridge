@@ -2,27 +2,44 @@ const TelegramBot = require('node-telegram-bot-api');
 const axios = require('axios');
 const express = require('express');
 
-// Inisialisasi Express untuk memenuhi syarat Web Service Render (membuka port)
-const app = express();
+// Konfigurasi Environment Variable
+const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const GITHUB_TOKEN = process.env.GITHUB_PAT;
+const GITHUB_REPO = process.env.GITHUB_REPO; // Format: username/nama-repo
+const RENDER_EXTERNAL_URL = process.env.RENDER_EXTERNAL_URL; // URL otomatis dari Render (contoh: https://nama-app.onrender.com)
 const PORT = process.env.PORT || 3000;
 
+// Inisialisasi Express untuk menangani webhook
+const app = express();
+app.use(express.json());
+
+// Inisialisasi Bot Telegram TANPA polling (menggunakan webhook)
+const bot = new TelegramBot(TELEGRAM_TOKEN);
+
+// Otomatis daftarkan webhook ke Telegram saat server menyala
+if (RENDER_EXTERNAL_URL) {
+  bot.setWebHook(`${RENDER_EXTERNAL_URL}/bot${TELEGRAM_TOKEN}`);
+  console.log(`Webhook berhasil dipasang ke: ${RENDER_EXTERNAL_URL}`);
+} else {
+  console.log("Peringatan: RENDER_EXTERNAL_URL tidak ditemukan. Pastikan diset di environment variables Render.");
+}
+
+// Endpoint untuk menerima webhook dari Telegram
+app.post(`/bot${TELEGRAM_TOKEN}`, (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
+
+// Endpoint dasar agar Render mendeteksi port terbuka
 app.get('/', (req, res) => {
-  res.send('Bot Telegram Jembatan Aktif!');
+  res.send('Bot Telegram Webhook Aktif!');
 });
 
 app.listen(PORT, () => {
   console.log(`Server web berjalan pada port ${PORT}`);
 });
 
-// Konfigurasi Bot Telegram
-const TELEGRAM_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const GITHUB_TOKEN = process.env.GITHUB_PAT;
-const GITHUB_REPO = process.env.GITHUB_REPO; // Format: username/nama-repo
-
-const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
-
-console.log("Bot jembatan Telegram-GitHub aktif...");
-
+// Logika saat dokumen (.zip) dikirim ke bot
 bot.on('document', async (msg) => {
   const chatId = msg.chat.id;
   const file = msg.document;
